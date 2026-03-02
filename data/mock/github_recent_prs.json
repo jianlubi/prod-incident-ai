@@ -1,0 +1,162 @@
+{
+  "repository": "prod-incident-ai",
+  "pull_requests": [
+    {
+      "number": 1964,
+      "title": "Catalog sync filter update for active SKU projection",
+      "description": "Refined inventory catalog projection filters and adjusted SKU lookup timeout to improve throughput.",
+      "merged_at": "2026-03-01T12:35:00Z",
+      "author": "erin",
+      "diff_path": "data/mock/pr_code_changes/pr_1964.patch",
+      "suspected_breaking_change": "Filtered out PREORDER SKUs from active projection and lowered inventory query timeout from 3000ms to 1200ms.",
+      "suggested_fix": "Restore PREORDER inclusion where required, roll back aggressive timeout, and validate catalog projection integrity before rollout.",
+      "risk_tags": [
+        "inventory-service",
+        "catalog",
+        "sku",
+        "fallback",
+        "cache"
+      ],
+      "files": [
+        {
+          "path": "services/inventory/catalog/sync.py",
+          "change_type": "modified",
+          "summary": "Changed active projection filter from ACTIVE+PREORDER to ACTIVE only."
+        },
+        {
+          "path": "services/inventory/query/inventory_repository.py",
+          "change_type": "modified",
+          "summary": "Reduced inventory query timeout from 3000ms to 1200ms."
+        }
+      ]
+    },
+    {
+      "number": 1960,
+      "title": "Harden JWT expiration and JWKS cache refresh",
+      "description": "Tightened JWT expiration checks and shortened JWKS cache TTL for faster key rotation response.",
+      "merged_at": "2026-03-01T05:42:00Z",
+      "author": "frank",
+      "diff_path": "data/mock/pr_code_changes/pr_1960.patch",
+      "suspected_breaking_change": "Set clock skew to zero and reduced JWKS cache TTL, increasing token expiry rejections during minor clock drift.",
+      "suggested_fix": "Reintroduce reasonable clock skew tolerance and tune JWKS cache refresh cadence to avoid auth spikes.",
+      "risk_tags": [
+        "auth-service",
+        "jwt",
+        "token-expired",
+        "identity-provider"
+      ],
+      "files": [
+        {
+          "path": "services/auth/middleware/jwt_validation.py",
+          "change_type": "modified",
+          "summary": "Reduced clock skew tolerance and changed token expiry rejection path."
+        },
+        {
+          "path": "services/auth/config/auth.yaml",
+          "change_type": "modified",
+          "summary": "Set clock_skew_seconds from 120 to 0."
+        }
+      ]
+    },
+    {
+      "number": 1942,
+      "title": "Reduce order DB command timeout and add retry policy",
+      "description": "Refactored OrderReadRepository timeout defaults from 3000ms to 1500ms and introduced retry policy for transient failures.",
+      "merged_at": "2026-02-28T18:24:00Z",
+      "author": "alice",
+      "diff_path": "data/mock/pr_code_changes/pr_1942.patch",
+      "suspected_breaking_change": "Lowered DB statement timeout from 3000ms to 1500ms while increasing retry attempts.",
+      "suggested_fix": "Restore timeout closer to 3000ms, cap retries, and add jittered backoff to reduce pool pressure.",
+      "risk_tags": [
+        "order-service",
+        "database",
+        "timeout",
+        "retry"
+      ],
+      "files": [
+        {
+          "path": "services/order/repositories/order_read_repository.py",
+          "change_type": "modified",
+          "summary": "Lowered command timeout and wrapped query execution with retry helper."
+        },
+        {
+          "path": "services/order/config/database.yml",
+          "change_type": "modified",
+          "summary": "Changed pool wait timeout and max connection settings."
+        }
+      ]
+    },
+    {
+      "number": 1951,
+      "title": "Tune payment provider client concurrency and retry backoff",
+      "description": "Updated payment provider integration with parallel request fan-out, retry-after handling, and circuit breaker thresholds.",
+      "merged_at": "2026-03-01T09:12:00Z",
+      "author": "bob",
+      "diff_path": "data/mock/pr_code_changes/pr_1951.patch",
+      "suspected_breaking_change": "Increased provider concurrency to 60 and replaced Retry-After based sleep with fixed 200ms.",
+      "suggested_fix": "Honor provider Retry-After headers, reduce in-flight calls, and tune retry policy to avoid 429 storms.",
+      "risk_tags": [
+        "payment-service",
+        "provider",
+        "429",
+        "rate-limit"
+      ],
+      "files": [
+        {
+          "path": "services/payment/provider/client.go",
+          "change_type": "modified",
+          "summary": "Increased concurrency from 20 to 60 and changed retry policy."
+        },
+        {
+          "path": "services/payment/resilience/policies.go",
+          "change_type": "modified",
+          "summary": "Adjusted circuit breaker from 50% to 35% failure threshold."
+        }
+      ]
+    },
+    {
+      "number": 1935,
+      "title": "Gateway timeout budget normalization",
+      "description": "Adjusted gateway upstream timeout defaults and aligned route-level budgets.",
+      "merged_at": "2026-02-27T16:02:00Z",
+      "author": "carol",
+      "risk_tags": [
+        "api-gateway",
+        "upstream",
+        "timeout"
+      ],
+      "files": [
+        {
+          "path": "services/gateway/proxy/timeout_policy.ts",
+          "change_type": "modified",
+          "summary": "Changed default upstream timeout to 2s for checkout and orders routes."
+        },
+        {
+          "path": "services/gateway/config/routes.yaml",
+          "change_type": "modified",
+          "summary": "Updated route-level timeout values and retry limits."
+        }
+      ]
+    },
+    {
+      "number": 1928,
+      "title": "Inventory cache fallback refactor",
+      "description": "Reworked cache miss fallback flow to always call primary datastore after redis timeout.",
+      "merged_at": "2026-02-26T11:41:00Z",
+      "author": "dave",
+      "risk_tags": [
+        "inventory-service",
+        "cache",
+        "fallback",
+        "db"
+      ],
+      "files": [
+        {
+          "path": "services/inventory/query/cache_fallback.py",
+          "change_type": "modified",
+          "summary": "Added fallback DB fetch path with new timeout constant."
+        }
+      ]
+    }
+  ]
+}

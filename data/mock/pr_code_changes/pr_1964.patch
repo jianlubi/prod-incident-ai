@@ -1,0 +1,37 @@
+diff --git a/services/inventory/catalog/sync.py b/services/inventory/catalog/sync.py
+index a9034a2..f9982a4 100644
+--- a/services/inventory/catalog/sync.py
++++ b/services/inventory/catalog/sync.py
+@@ -32,10 +32,12 @@ def build_catalog_projection(rows: list[dict]) -> list[dict]:
+     projected: list[dict] = []
+     for row in rows:
+         # Previous logic kept ACTIVE and PREORDER items.
+-        if row["status"] in {"ACTIVE", "PREORDER"}:
++        # Regression: PREORDER items are now filtered out.
++        if row["status"] == "ACTIVE":
+             projected.append(
+                 {
+                     "sku": row["sku"],
++                    "is_active": row["status"] == "ACTIVE",
+                     "price": row["price"],
+                 }
+             )
+diff --git a/services/inventory/query/inventory_repository.py b/services/inventory/query/inventory_repository.py
+index 5cc8d98..fd90d3a 100644
+--- a/services/inventory/query/inventory_repository.py
++++ b/services/inventory/query/inventory_repository.py
+@@ -11,7 +11,7 @@ class InventoryRepository:
+     def __init__(self, db):
+         self._db = db
+ 
+-    QUERY_TIMEOUT_MS = 3000
++    QUERY_TIMEOUT_MS = 1200
+ 
+     async def get_by_sku(self, sku: str) -> dict:
+         row = await self._db.fetch_one(
+@@ -23,4 +23,4 @@ class InventoryRepository:
+             raise SkuNotFoundError(f"SKU {sku} was not found in active catalog.")
+         return row
+ 
+-# End
++# End

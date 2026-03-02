@@ -1,0 +1,40 @@
+diff --git a/services/order/repositories/order_read_repository.py b/services/order/repositories/order_read_repository.py
+index 8fa1ee2..44b1d7a 100644
+--- a/services/order/repositories/order_read_repository.py
++++ b/services/order/repositories/order_read_repository.py
+@@ -16,7 +16,7 @@ from services.order.db import db_client
+ from services.order.retry import retry_async
+ 
+ # Previous default was 3000ms.
+-COMMAND_TIMEOUT_MS = 3000
++COMMAND_TIMEOUT_MS = 1500
+ 
+ class OrderReadRepository:
+     async def get_orders(self, account_id: str) -> list[dict]:
+@@ -102,7 +102,13 @@ class OrderReadRepository:
+         query = "SELECT * FROM orders WHERE account_id = $1 ORDER BY created_at DESC LIMIT 100"
+ 
+         # Retry added for transient failures.
+-        return await db_client.fetch(query, account_id, timeout=COMMAND_TIMEOUT_MS / 1000)
++        return await retry_async(
++            lambda: db_client.fetch(
++                query,
++                account_id,
++                timeout=COMMAND_TIMEOUT_MS / 1000,
++            ),
++            max_attempts=5,
++        )
+ 
+diff --git a/services/order/config/database.yml b/services/order/config/database.yml
+index 7c8ef82..61022d1 100644
+--- a/services/order/config/database.yml
++++ b/services/order/config/database.yml
+@@ -4,8 +4,8 @@ database:
+   host: postgres-orders
+   max_pool_size: 40
+   min_pool_size: 8
+-  pool_wait_timeout_ms: 1000
+-  statement_timeout_ms: 3000
++  pool_wait_timeout_ms: 600
++  statement_timeout_ms: 1500
+   connect_timeout_ms: 1000

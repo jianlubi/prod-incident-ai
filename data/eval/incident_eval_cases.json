@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "incident_index": 1,
+      "name": "Auth token validation incident",
+      "required_pr_markers": [
+        "#1960",
+        "1960",
+        "jwt_validation.py",
+        "Harden JWT expiration"
+      ],
+      "required_fix_keywords": [
+        "clock skew",
+        "token",
+        "jwt",
+        "expiration",
+        "identity-provider",
+        "cache"
+      ],
+      "min_fix_keyword_hits": 3
+    },
+    {
+      "incident_index": 2,
+      "name": "Order DB timeout incident",
+      "required_pr_markers": [
+        "#1942",
+        "1942",
+        "order_read_repository.py",
+        "Reduce order DB command timeout"
+      ],
+      "required_fix_keywords": [
+        "3000ms",
+        "1500ms",
+        "timeout",
+        "retry",
+        "backoff",
+        "pool"
+      ],
+      "min_fix_keyword_hits": 3
+    },
+    {
+      "incident_index": 3,
+      "name": "Payment provider 429 incident",
+      "required_pr_markers": [
+        "#1951",
+        "1951",
+        "services/payment/provider/client.go",
+        "Tune payment provider client concurrency"
+      ],
+      "required_fix_keywords": [
+        "retry-after",
+        "429",
+        "concurrency",
+        "in-flight",
+        "rate limit",
+        "backoff"
+      ],
+      "min_fix_keyword_hits": 3
+    },
+    {
+      "incident_index": 4,
+      "name": "Inventory catalog mismatch incident",
+      "required_pr_markers": [
+        "#1964",
+        "1964",
+        "services/inventory/catalog/sync.py",
+        "Catalog sync filter update"
+      ],
+      "required_fix_keywords": [
+        "sku",
+        "catalog",
+        "filter",
+        "preorder",
+        "fallback",
+        "timeout"
+      ],
+      "min_fix_keyword_hits": 3
+    }
+  ]
+}

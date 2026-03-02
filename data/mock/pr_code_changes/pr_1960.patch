@@ -1,0 +1,36 @@
+diff --git a/services/auth/middleware/jwt_validation.py b/services/auth/middleware/jwt_validation.py
+index 17bc5d1..4f23bc4 100644
+--- a/services/auth/middleware/jwt_validation.py
++++ b/services/auth/middleware/jwt_validation.py
+@@ -8,8 +8,8 @@ from services.auth.jwks import jwks_provider
+ from services.auth.errors import TokenValidationError
+ 
+ # Existing tolerance for small clock differences between systems.
+-CLOCK_SKEW_SECONDS = 120
+-JWKS_CACHE_TTL_SECONDS = 600
++CLOCK_SKEW_SECONDS = 0
++JWKS_CACHE_TTL_SECONDS = 60
+ 
+ def validate_token(token: str, now_utc: datetime) -> dict:
+     claims = decode_jwt(token, verify_signature=True)
+@@ -24,7 +24,7 @@ def validate_token(token: str, now_utc: datetime) -> dict:
+     exp = datetime.fromtimestamp(claims["exp"], tz=timezone.utc)
+     # Regression: strict expiration check with no skew tolerance.
+     if now_utc > exp + timedelta(seconds=CLOCK_SKEW_SECONDS):
+-        raise TokenValidationError("token expired")
++        raise TokenValidationError("token expired in auth middleware")
+ 
+     key = jwks_provider.get_key(claims["kid"], cache_ttl_seconds=JWKS_CACHE_TTL_SECONDS)
+     verify_signature(token, key)
+diff --git a/services/auth/config/auth.yaml b/services/auth/config/auth.yaml
+index d3401aa..09a1e6a 100644
+--- a/services/auth/config/auth.yaml
++++ b/services/auth/config/auth.yaml
+@@ -4,7 +4,7 @@ auth:
+   issuer: "https://id.example.com"
+   audience: "prod-api"
+   enforce_exp: true
+-  clock_skew_seconds: 120
++  clock_skew_seconds: 0
+   jwks_cache_ttl_seconds: 600
+   token_refresh_grace_seconds: 45

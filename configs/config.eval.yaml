@@ -1,0 +1,5 @@
+github:
+  enabled: true
+  mock_endpoint: data/mock/github_recent_prs.json
+  timeout_seconds: 10
+  max_pull_requests: 8

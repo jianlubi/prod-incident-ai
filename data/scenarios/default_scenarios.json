@@ -1,0 +1,122 @@
+{
+  "scenarios": [
+    {
+      "incident_id": "INC-20260301-003",
+      "name": "Auth token validation failure spike",
+      "root_cause": "Clock skew and token validation strictness change caused widespread JWT expiry rejection",
+      "primary_service": "auth-service",
+      "start_offset_min": 6,
+      "duration_min": 12,
+      "affected_services": [
+        "auth-service",
+        "api-gateway"
+      ],
+      "error_catalog": [
+        {
+          "code": "TOKEN_EXPIRED",
+          "signature": "auth.jwt: token expired in auth middleware",
+          "weight": 0.6
+        },
+        {
+          "code": "UPSTREAM_TIMEOUT",
+          "signature": "api_gateway.auth: auth-service token check timed out",
+          "weight": 0.25
+        },
+        {
+          "code": "CLIENT_ABORT",
+          "signature": "gateway.request: client aborted during auth flow",
+          "weight": 0.15
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-20260301-001",
+      "name": "Database timeout spike in order flow",
+      "root_cause": "Connection pool saturation after traffic surge",
+      "primary_service": "order-service",
+      "start_offset_min": 22,
+      "duration_min": 31,
+      "affected_services": [
+        "api-gateway",
+        "order-service",
+        "inventory-service"
+      ],
+      "error_catalog": [
+        {
+          "code": "DB_TIMEOUT",
+          "signature": "order_repo.query: timeout after 1500ms",
+          "weight": 0.62
+        },
+        {
+          "code": "UPSTREAM_TIMEOUT",
+          "signature": "api_gateway.proxy: upstream order-service timed out",
+          "weight": 0.23
+        },
+        {
+          "code": "CACHE_FALLBACK_FAIL",
+          "signature": "inventory_cache.get: fallback db call timeout",
+          "weight": 0.15
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-20260301-002",
+      "name": "Payment provider rate limit",
+      "root_cause": "Burst traffic exceeded external provider quota",
+      "primary_service": "payment-service",
+      "start_offset_min": 74,
+      "duration_min": 26,
+      "affected_services": [
+        "payment-service",
+        "api-gateway"
+      ],
+      "error_catalog": [
+        {
+          "code": "PAYMENT_429",
+          "signature": "payments.client: provider responded 429",
+          "weight": 0.58
+        },
+        {
+          "code": "RETRY_BUDGET_EXCEEDED",
+          "signature": "payments.retry: retry budget exhausted",
+          "weight": 0.3
+        },
+        {
+          "code": "UPSTREAM_503",
+          "signature": "api_gateway.proxy: upstream payment-service unavailable",
+          "weight": 0.12
+        }
+      ]
+    },
+    {
+      "incident_id": "INC-20260301-004",
+      "name": "Inventory catalog mismatch after rollout",
+      "root_cause": "Catalog sync filter removed active SKUs while cache still served stale references",
+      "primary_service": "inventory-service",
+      "start_offset_min": 104,
+      "duration_min": 12,
+      "affected_services": [
+        "inventory-service",
+        "order-service",
+        "api-gateway"
+      ],
+      "error_catalog": [
+        {
+          "code": "SKU_NOT_FOUND",
+          "signature": "inventory.repo: sku missing after catalog refresh",
+          "weight": 0.58
+        },
+        {
+          "code": "CACHE_FALLBACK_FAIL",
+          "signature": "inventory_cache.get: db fallback timed out for sku lookup",
+          "weight": 0.27
+        },
+        {
+          "code": "ORDER_INPUT_INVALID",
+          "signature": "order.validator: sku validation mismatch",
+          "weight": 0.15
+        }
+      ]
+    }
+  ]
+}

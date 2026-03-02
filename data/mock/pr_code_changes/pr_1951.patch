@@ -1,0 +1,36 @@
+diff --git a/services/payment/provider/client.go b/services/payment/provider/client.go
+index 19a27d2..89c1ef9 100644
+--- a/services/payment/provider/client.go
++++ b/services/payment/provider/client.go
+@@ -23,8 +23,8 @@ import (
+ )
+ 
+ const (
+-    maxInFlightProviderCalls = 20
+-    maxRetries = 2
++    maxInFlightProviderCalls = 60
++    maxRetries = 3
+ )
+ 
+ func (c *Client) CreateCharge(ctx context.Context, req ChargeRequest) (*ChargeResponse, error) {
+@@ -77,13 +77,14 @@ func (c *Client) CreateCharge(ctx context.Context, req ChargeRequest) (*ChargeR
+         if resp.StatusCode == 429 {
+             // Provider sends Retry-After header in seconds.
+             retryAfter := resp.Header.Get("Retry-After")
+-            if retryAfter != "" {
+-                sec, _ := strconv.Atoi(retryAfter)
+-                time.Sleep(time.Duration(sec) * time.Second)
+-            }
++            // Regression: fixed 200ms sleep ignores provider backoff.
++            time.Sleep(200 * time.Millisecond)
+             continue
+         }
+ 
+         if resp.StatusCode >= 500 {
+             continue
+         }
+@@ -95,3 +96,4 @@ func (c *Client) CreateCharge(ctx context.Context, req ChargeRequest) (*ChargeR
+     }
+     return nil, errors.New("provider call failed after retries")
+ }
++

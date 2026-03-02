@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prod-incident-ai"
+version = "0.1.0"
+description = "Production incident analysis pipeline with ADX-style logs and LLM summaries."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+prod-incident-generate = "prod_incident_ai.generate_logs:main"
+prod-incident-analyze = "prod_incident_ai.analyze_adx:main"
+prod-incident-summarize = "prod_incident_ai.summarize_incident:main"
+prod-incident-eval = "prod_incident_ai.eval_incident_summary:main"
+prod-incident-pipeline = "prod_incident_ai.run_pipeline:main"
+
