@@ -17,7 +17,7 @@ This repo simulates a production incident pipeline end-to-end:
 
 ## Sample Screenshots
 
-Incident summary output:
+Incident summary output (updated handoff format):
 
 ![Incident summary screenshot](docs/screenshots/incident_summary.png)
 

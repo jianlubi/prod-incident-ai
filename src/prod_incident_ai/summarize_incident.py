@@ -50,10 +50,6 @@ FIX_HINTS = {
 }
 
 
-def iso_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
 def load_report(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -82,10 +78,6 @@ def load_adx_rows(path: Path) -> List[Dict[str, Any]]:
         rows.append(row)
     rows.sort(key=lambda r: r["_ts"])
     return rows
-
-
-def format_list(items: List[str], default: str = "None") -> str:
-    return ", ".join(items) if items else default
 
 
 def normalize_tokens(text: str) -> List[str]:
@@ -312,156 +304,179 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
     prs = github_context.get("pull_requests", []) if isinstance(github_context, dict) else []
 
     lines: List[str] = []
-    lines.append(f"# Incident Summary ({iso_now()})")
-    lines.append("")
-    lines.append("## Executive Summary")
-    lines.append(f"- Processed `{report.get('total_logs', 0)}` logs and found `{report.get('total_errors', 0)}` errors.")
-    lines.append(f"- Detected `{len(incidents)}` incident window(s) with elevated error rates.")
-    baseline = report.get("baseline", {})
-    lines.append(
-        "- Baseline error rate was "
-        f"`{baseline.get('baseline_error_rate', 0.0):.4f}` and detection threshold was "
-        f"`{baseline.get('threshold_error_rate', 0.0):.4f}`."
-    )
-    if github_context.get("enabled"):
-        lines.append(f"- GitHub PR context enabled with `{len(prs)}` recent PR(s) loaded.")
-    else:
-        lines.append("- GitHub PR context is disabled by config.")
-    if log_context.get("available"):
-        lines.append("- Nearby ADX log context snippets were included for incident reasoning.")
-    else:
-        lines.append("- No ADX log context snippets were available.")
-    lines.append("")
+    if not incidents:
+        lines.append("Incident Summary")
+        lines.append("----------------")
+        lines.append("Service: unknown")
+        lines.append("Symptoms: no incident windows detected")
+        lines.append("")
+        lines.append("Likely Causes")
+        lines.append("-------------")
+        lines.append("1. No elevated incident window was detected from the provided report.")
+        lines.append("")
+        lines.append("Recommended Actions")
+        lines.append("-------------------")
+        lines.append("- Verify incident detection thresholds and input log coverage.")
+        lines.append("")
+        lines.append("Evidence")
+        lines.append("--------")
+        lines.append("- Report: zero incident windows in incident_report.json")
+        lines.append("")
+        return "\n".join(lines)
+
+    context_incidents = log_context.get("incidents", [])
 
     for idx, incident in enumerate(incidents, start=1):
-        lines.append(f"## Incident {idx}")
-        lines.append(f"- Start: `{incident.get('start_time', 'unknown')}`")
-        lines.append(f"- End: `{incident.get('end_time', 'unknown')}`")
-        lines.append(
-            "- Error rate: "
-            f"`{incident.get('error_rate', 0.0):.4f}` "
-            f"({incident.get('total_errors', 0)} errors / {incident.get('total_logs', 0)} logs)"
-        )
-        lines.append(
-            "- Peak minute: "
-            f"`{incident.get('peak_minute', 'unknown')}` "
-            f"(error rate `{incident.get('peak_error_rate', 0.0):.4f}`)"
-        )
         likely = incident.get("likely_area", {})
-        lines.append(
-            "- Likely fault domain: "
-            f"`{likely.get('service', 'unknown')}` -> `{likely.get('upstream_target', 'unknown')}`"
-        )
-        if likely.get("reason"):
-            lines.append(f"- Reasoning: {likely['reason']}")
-
         top_errors = incident.get("top_errors", [])[:5]
-        if top_errors:
-            lines.append("- Top errors:")
-            for row in top_errors:
-                lines.append(
-                    "  - "
-                    f"`{row.get('error', 'unknown')}`: {row.get('count', 0)} "
-                    f"(first seen `{row.get('first_seen', 'unknown')}`)"
-                )
-        else:
-            lines.append("- Top errors: none found.")
-
+        dominant_code = str(incident.get("dominant_error_code", "unknown"))
         impacted = [x.get("service", "unknown") for x in incident.get("impacted_services", [])[:5]]
-        lines.append(f"- Impacted services: {format_list(impacted)}")
-
         related = rank_related_prs(incident, prs, max_items=3) if prs else []
+        snippets = context_incidents[idx - 1].get("snippets", {}) if idx - 1 < len(context_incidents) else {}
+        onset_logs = snippets.get("error_onset_window", [])
+        dominant_logs = snippets.get("dominant_error_samples", [])
+
+        service = str(likely.get("service") or (impacted[0] if impacted else "unknown"))
+        evidence_row = None
+        if dominant_logs:
+            evidence_row = dominant_logs[0]
+        elif onset_logs:
+            for row in onset_logs:
+                status = row.get("status")
+                level = str(row.get("level", "")).upper()
+                has_error_code = bool(row.get("error_code"))
+                is_error_status = str(status).isdigit() and int(str(status)) >= 400
+                if has_error_code or level in {"ERROR", "WARN"} or is_error_status:
+                    evidence_row = row
+                    break
+            if evidence_row is None:
+                evidence_row = onset_logs[0]
+
+        symptoms: List[str] = [
+            f"error spike ({incident.get('total_errors', 0)} errors / {incident.get('total_logs', 0)} logs)"
+        ]
+        if "TIMEOUT" in dominant_code.upper():
+            symptoms.append("latency spike")
+        symptoms.append(f"dominant error {dominant_code}")
+        symptoms_line = " + ".join(dict.fromkeys(symptoms))
+
+        cause_lines: List[str] = []
         if related:
-            lines.append("- Potential related recent PRs:")
-            for pr in related:
-                number = pr.get("number", "unknown")
-                title = pr.get("title", "Untitled PR")
-                merged = pr.get("merged_at", "unknown-time")
+            for pr in related[:2]:
                 files = pr.get("files", [])
                 file_hint = files[0].get("path", "unknown-file") if files and isinstance(files[0], dict) else "unknown-file"
-                lines.append(f"  - `#{number}` {title} (merged `{merged}`, key file `{file_hint}`)")
-        elif github_context.get("enabled"):
-            lines.append("- Potential related recent PRs: none matched by keyword heuristics.")
+                cause_lines.append(
+                    f"Recent PR #{pr.get('number', 'unknown')} changed {file_hint} ({pr.get('title', 'Untitled PR')})."
+                )
+        elif likely.get("reason"):
+            cause_lines.append(str(likely.get("reason")))
+        else:
+            cause_lines.append(
+                f"Likely fault domain points to {likely.get('service', 'unknown')} -> {likely.get('upstream_target', 'unknown')}."
+            )
 
-        dominant_code = incident.get("dominant_error_code")
-        hints = FIX_HINTS.get(str(dominant_code), [])
+        if evidence_row:
+            row = evidence_row
+            cause_lines.append(
+                f"Log shows {row.get('error_code') or 'error'} with message: {row.get('message', 'n/a')}."
+            )
+        elif top_errors:
+            top = top_errors[0]
+            cause_lines.append(
+                f"Top error {top.get('error', 'unknown')} occurred {top.get('count', 0)} times (first seen {top.get('first_seen', 'unknown')})."
+            )
+        else:
+            cause_lines.append("Error trend shows elevated failures in the incident window.")
+
+        action_lines: List[str] = []
+        if related:
+            candidates = ", ".join(f"#{pr.get('number', 'unknown')}" for pr in related[:2])
+            action_lines.append(f"Rollback or hotfix candidate PRs ({candidates}).")
+        hints = FIX_HINTS.get(dominant_code, [])
         if hints:
-            lines.append("- Candidate fix direction:")
-            for hint in hints[:3]:
-                lines.append(f"  - {hint}")
+            action_lines.extend(hints[:2])
+        action_lines.append("Monitor error rate for 10 minutes after mitigation.")
+        deduped_actions: List[str] = []
+        for action in action_lines:
+            if action not in deduped_actions:
+                deduped_actions.append(action)
+        action_lines = deduped_actions[:3]
 
-        context_incidents = log_context.get("incidents", [])
-        if idx - 1 < len(context_incidents):
-            c = context_incidents[idx - 1]
-            onset = c.get("snippets", {}).get("error_onset_window", [])
-            if onset:
-                lines.append("- Example nearby logs at incident onset:")
-                for row in onset[:2]:
-                    lines.append(
-                        "  - "
-                        f"`{row.get('time')}` {row.get('level')} {row.get('service')} "
-                        f"route={row.get('route')} status={row.get('status')} msg=\"{row.get('message')}\""
-                    )
+        evidence_lines: List[str] = []
+        if evidence_row:
+            row = evidence_row
+            evidence_lines.append(
+                f"Log: {row.get('time')} {row.get('service')} {row.get('error_code') or row.get('status')} msg=\"{row.get('message', 'n/a')}\""
+            )
+        elif top_errors:
+            top = top_errors[0]
+            evidence_lines.append(
+                f"Log: {top.get('error', 'unknown')} count={top.get('count', 0)} first_seen={top.get('first_seen', 'unknown')}"
+            )
+        if related:
+            for pr in related[:2]:
+                files = pr.get("files", [])
+                file_hint = files[0].get("path", "unknown-file") if files and isinstance(files[0], dict) else "unknown-file"
+                evidence_lines.append(
+                    f"PR: #{pr.get('number', 'unknown')} {pr.get('title', 'Untitled PR')} (key file {file_hint})"
+                )
+        else:
+            evidence_lines.append("PR: no high-confidence related PR match found")
+
+        lines.append(f"Incident {idx}")
+        lines.append("")
+        lines.append("Incident Summary")
+        lines.append("----------------")
+        lines.append(f"Service: {service}")
+        lines.append(f"Symptoms: {symptoms_line}")
+        lines.append("")
+        lines.append("Likely Causes")
+        lines.append("-------------")
+        for cause_idx, cause in enumerate(cause_lines[:3], start=1):
+            lines.append(f"{cause_idx}. {cause}")
+        lines.append("")
+        lines.append("Recommended Actions")
+        lines.append("-------------------")
+        for action in action_lines:
+            lines.append(f"- {action}")
+        lines.append("")
+        lines.append("Evidence")
+        lines.append("--------")
+        for evidence in evidence_lines[:3]:
+            lines.append(f"- {evidence}")
         lines.append("")
 
-    lines.append("## Suggested Next Checks")
-    lines.append("- Verify deployment or config changes around each incident start time.")
-    lines.append("- Correlate top error signatures with dependency saturation and retry behavior.")
-    lines.append("- Validate whether candidate PRs introduced timeout/retry or dependency behavior changes.")
-    lines.append("")
-    return "\n".join(lines)
-
-
-def build_pr_mapping_appendix(report: Dict[str, Any], github_context: Dict[str, Any]) -> str:
-    if not github_context.get("enabled"):
-        return ""
-    prs = github_context.get("pull_requests", [])
-    if not isinstance(prs, list) or not prs:
-        return ""
-
-    incidents = report.get("incidents", [])
-    if not incidents:
-        return ""
-
-    lines: List[str] = []
-    lines.append("## Supplemental PR Mapping (Deterministic)")
-    lines.append("")
-
-    for idx, incident in enumerate(incidents, start=1):
-        dominant = incident.get("dominant_error_code", "unknown")
-        likely = incident.get("likely_area", {})
-        lines.append(
-            f"- Incident {idx} (`{dominant}`; `{likely.get('service', 'unknown')}` -> "
-            f"`{likely.get('upstream_target', 'unknown')}`):"
-        )
-        related = rank_related_prs(incident, prs, max_items=2)
-        if not related:
-            lines.append("  - No high-confidence PR match.")
-            continue
-        for pr in related:
-            number = pr.get("number", "unknown")
-            title = pr.get("title", "Untitled PR")
-            files = pr.get("files", [])
-            file_hint = files[0].get("path", "unknown-file") if files and isinstance(files[0], dict) else "unknown-file"
-            lines.append(f"  - `#{number}` {title} (key file `{file_hint}`)")
-            suggestion = pr.get("suggested_fix")
-            if suggestion:
-                lines.append(f"    - Suggested fix: {suggestion}")
-    lines.append("")
     return "\n".join(lines)
 
 
 def build_prompt(report: Dict[str, Any], github_context: Dict[str, Any], log_context: Dict[str, Any]) -> str:
     return (
-        "You are an SRE incident analyst. Write a concise markdown incident brief for on-call handoff.\n"
+        "You are an SRE incident analyst. Write a concise plain-text incident brief for on-call handoff.\n"
         "Requirements:\n"
-        "- Use sections: Executive Summary, Incident Timeline, Top Errors, Impact Assessment, Likely Fault Domain, Related Recent PR Changes, Suggested Fix.\n"
-        "- Include concrete timestamps from the report.\n"
-        "- Mention top error signatures and counts.\n"
-        "- Correlate incidents to relevant recent PR changes when possible.\n"
-        "- Use the provided nearby log snippets to strengthen root-cause reasoning with concrete evidence.\n"
-        "- In 'Related Recent PR Changes', cite PR numbers like #1942 and key changed file paths.\n"
-        "- In 'Suggested Fix', give concrete code/config changes (example: restore timeout value, honor Retry-After, reduce concurrency).\n"
+        "- For each incident, output this exact section order and titles:\n"
+        "  Incident Summary\n"
+        "  ----------------\n"
+        "  Service: ...\n"
+        "  Symptoms: ...\n"
+        "\n"
+        "  Likely Causes\n"
+        "  -------------\n"
+        "  1. ...\n"
+        "  2. ...\n"
+        "\n"
+        "  Recommended Actions\n"
+        "  -------------------\n"
+        "  - ...\n"
+        "  - ...\n"
+        "\n"
+        "  Evidence\n"
+        "  --------\n"
+        "  - Log: ...\n"
+        "  - PR: ...\n"
+        "- Keep each incident block concise and factual.\n"
+        "- Include concrete timestamps, top error signatures, and counts where useful.\n"
+        "- Correlate incidents to relevant recent PR changes when possible, citing PR numbers and file paths.\n"
+        "- Use nearby log snippets as evidence and avoid unsupported speculation.\n"
         "- Keep it factual and avoid speculation beyond the provided data.\n\n"
         "Incident report JSON:\n"
         f"{json.dumps(report, indent=2)}\n\n"
@@ -627,12 +642,6 @@ def main() -> None:
             summary = local_summary(report, github_context, log_context)
     else:
         summary = local_summary(report, github_context, log_context)
-
-    appendix = build_pr_mapping_appendix(report, github_context)
-    if appendix:
-        if not summary.endswith("\n"):
-            summary += "\n"
-        summary += "\n" + appendix
 
     out_path = args.out_md if args.out_md.is_absolute() else (repo_root / args.out_md)
     out_path.parent.mkdir(parents=True, exist_ok=True)
