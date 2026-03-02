@@ -20,9 +20,21 @@ def load_json(path: Path) -> Dict[str, Any]:
 
 
 def split_incident_sections(markdown: str) -> List[str]:
-    parts = re.split(r"(?m)^##\s+Incident\s+\d+\s*$", markdown)
-    # parts[0] is preamble; remaining are incident sections in order.
-    return [p for p in parts[1:]]
+    legacy_parts = re.split(r"(?m)^##\s+Incident\s+\d+\s*$", markdown)
+    if len(legacy_parts) > 1:
+        # parts[0] is preamble; remaining are incident sections in order.
+        return [p for p in legacy_parts[1:] if p.strip()]
+
+    plain_parts = re.split(r"(?m)^Incident\s+\d+\s*$", markdown)
+    if len(plain_parts) > 1:
+        return [p for p in plain_parts[1:] if p.strip()]
+
+    # Fallback for summaries that omit explicit incident numbering.
+    blocks = re.split(r"(?m)^Incident Summary\s*$", markdown)
+    if len(blocks) > 1:
+        return [f"Incident Summary\n{b}" for b in blocks[1:] if b.strip()]
+
+    return [markdown]
 
 
 def normalize(text: str) -> str:

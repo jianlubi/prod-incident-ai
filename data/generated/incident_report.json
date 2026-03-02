@@ -1,0 +1,282 @@
+{
+  "generated_at": "2026-03-02T03:17:46.134288Z",
+  "total_logs": 25284,
+  "total_errors": 3428,
+  "baseline": {
+    "baseline_error_rate": 0.0384,
+    "threshold_error_rate": 0.073,
+    "average_logs_per_minute": 210.7,
+    "min_errors_per_minute": 6
+  },
+  "incidents": [
+    {
+      "start_time": "2026-03-01T12:06:01Z",
+      "end_time": "2026-03-01T12:17:59Z",
+      "window_start_minute": "2026-03-01T12:06:00Z",
+      "window_end_minute": "2026-03-01T12:18:00Z",
+      "total_logs": 2513,
+      "total_errors": 366,
+      "error_rate": 0.1456,
+      "peak_minute": "2026-03-01T12:12:00Z",
+      "peak_error_rate": 0.2166,
+      "peak_errors": 47,
+      "dominant_error_code": "TOKEN_EXPIRED",
+      "top_errors": [
+        {
+          "error": "auth.jwt: token expired in auth middleware",
+          "count": 205,
+          "first_seen": "2026-03-01T12:06:01Z"
+        },
+        {
+          "error": "api_gateway.auth: auth-service token check timed out",
+          "count": 84,
+          "first_seen": "2026-03-01T12:06:06Z"
+        },
+        {
+          "error": "gateway.request: client aborted during auth flow",
+          "count": 41,
+          "first_seen": "2026-03-01T12:06:51Z"
+        },
+        {
+          "error": "Auth.API.Middleware.JwtValidationMiddleware",
+          "count": 9,
+          "first_seen": "2026-03-01T12:09:25Z"
+        },
+        {
+          "error": "Payment.Infrastructure.Provider.PaymentProviderClient",
+          "count": 7,
+          "first_seen": "2026-03-01T12:06:28Z"
+        }
+      ],
+      "impacted_services": [
+        {
+          "service": "api-gateway",
+          "errors": 173
+        },
+        {
+          "service": "auth-service",
+          "errors": 167
+        },
+        {
+          "service": "inventory-service",
+          "errors": 12
+        },
+        {
+          "service": "order-service",
+          "errors": 9
+        },
+        {
+          "service": "payment-service",
+          "errors": 5
+        }
+      ],
+      "likely_area": {
+        "service": "auth-service",
+        "upstream_target": "identity-provider",
+        "reason": "Dominant errorCode=TOKEN_EXPIRED maps to service=auth-service, upstream=identity-provider."
+      }
+    },
+    {
+      "start_time": "2026-03-01T12:22:03Z",
+      "end_time": "2026-03-01T12:52:59Z",
+      "window_start_minute": "2026-03-01T12:22:00Z",
+      "window_end_minute": "2026-03-01T12:53:00Z",
+      "total_logs": 6553,
+      "total_errors": 1441,
+      "error_rate": 0.2199,
+      "peak_minute": "2026-03-01T12:45:00Z",
+      "peak_error_rate": 0.3803,
+      "peak_errors": 81,
+      "dominant_error_code": "DB_TIMEOUT",
+      "top_errors": [
+        {
+          "error": "order_repo.query: timeout after 1500ms",
+          "count": 850,
+          "first_seen": "2026-03-01T12:22:04Z"
+        },
+        {
+          "error": "api_gateway.proxy: upstream order-service timed out",
+          "count": 314,
+          "first_seen": "2026-03-01T12:22:09Z"
+        },
+        {
+          "error": "inventory_cache.get: fallback db call timeout",
+          "count": 177,
+          "first_seen": "2026-03-01T12:22:03Z"
+        },
+        {
+          "error": "Order.API.Validation.CheckoutValidator",
+          "count": 25,
+          "first_seen": "2026-03-01T12:26:52Z"
+        },
+        {
+          "error": "Microsoft.AspNetCore.Server.Kestrel",
+          "count": 23,
+          "first_seen": "2026-03-01T12:22:30Z"
+        }
+      ],
+      "impacted_services": [
+        {
+          "service": "api-gateway",
+          "errors": 481
+        },
+        {
+          "service": "inventory-service",
+          "errors": 453
+        },
+        {
+          "service": "order-service",
+          "errors": 450
+        },
+        {
+          "service": "auth-service",
+          "errors": 30
+        },
+        {
+          "service": "payment-service",
+          "errors": 27
+        }
+      ],
+      "likely_area": {
+        "service": "order-service",
+        "upstream_target": "postgres-orders",
+        "reason": "Dominant errorCode=DB_TIMEOUT maps to service=order-service, upstream=postgres-orders."
+      }
+    },
+    {
+      "start_time": "2026-03-01T13:14:01Z",
+      "end_time": "2026-03-01T13:39:59Z",
+      "window_start_minute": "2026-03-01T13:14:00Z",
+      "window_end_minute": "2026-03-01T13:40:00Z",
+      "total_logs": 5476,
+      "total_errors": 862,
+      "error_rate": 0.1574,
+      "peak_minute": "2026-03-01T13:32:00Z",
+      "peak_error_rate": 0.267,
+      "peak_errors": 55,
+      "dominant_error_code": "PAYMENT_429",
+      "top_errors": [
+        {
+          "error": "payments.client: provider responded 429",
+          "count": 465,
+          "first_seen": "2026-03-01T13:14:01Z"
+        },
+        {
+          "error": "payments.retry: retry budget exhausted",
+          "count": 202,
+          "first_seen": "2026-03-01T13:14:09Z"
+        },
+        {
+          "error": "api_gateway.proxy: upstream payment-service unavailable",
+          "count": 92,
+          "first_seen": "2026-03-01T13:14:17Z"
+        },
+        {
+          "error": "Order.API.Validation.CheckoutValidator",
+          "count": 24,
+          "first_seen": "2026-03-01T13:14:30Z"
+        },
+        {
+          "error": "Microsoft.AspNetCore.Server.Kestrel",
+          "count": 23,
+          "first_seen": "2026-03-01T13:14:48Z"
+        }
+      ],
+      "impacted_services": [
+        {
+          "service": "payment-service",
+          "errors": 401
+        },
+        {
+          "service": "api-gateway",
+          "errors": 391
+        },
+        {
+          "service": "auth-service",
+          "errors": 26
+        },
+        {
+          "service": "order-service",
+          "errors": 23
+        },
+        {
+          "service": "inventory-service",
+          "errors": 21
+        }
+      ],
+      "likely_area": {
+        "service": "payment-service",
+        "upstream_target": "payment-provider",
+        "reason": "Dominant errorCode=PAYMENT_429 maps to service=payment-service, upstream=payment-provider."
+      }
+    },
+    {
+      "start_time": "2026-03-01T13:44:03Z",
+      "end_time": "2026-03-01T13:55:58Z",
+      "window_start_minute": "2026-03-01T13:44:00Z",
+      "window_end_minute": "2026-03-01T13:56:00Z",
+      "total_logs": 2498,
+      "total_errors": 588,
+      "error_rate": 0.2354,
+      "peak_minute": "2026-03-01T13:52:00Z",
+      "peak_error_rate": 0.4764,
+      "peak_errors": 101,
+      "dominant_error_code": "SKU_NOT_FOUND",
+      "top_errors": [
+        {
+          "error": "inventory.repo: sku missing after catalog refresh",
+          "count": 310,
+          "first_seen": "2026-03-01T13:44:04Z"
+        },
+        {
+          "error": "inventory_cache.get: db fallback timed out for sku lookup",
+          "count": 152,
+          "first_seen": "2026-03-01T13:44:03Z"
+        },
+        {
+          "error": "order.validator: sku validation mismatch",
+          "count": 76,
+          "first_seen": "2026-03-01T13:44:19Z"
+        },
+        {
+          "error": "Order.API.Validation.CheckoutValidator",
+          "count": 12,
+          "first_seen": "2026-03-01T13:44:06Z"
+        },
+        {
+          "error": "Microsoft.AspNetCore.Server.Kestrel",
+          "count": 10,
+          "first_seen": "2026-03-01T13:44:26Z"
+        }
+      ],
+      "impacted_services": [
+        {
+          "service": "inventory-service",
+          "errors": 202
+        },
+        {
+          "service": "api-gateway",
+          "errors": 177
+        },
+        {
+          "service": "order-service",
+          "errors": 175
+        },
+        {
+          "service": "payment-service",
+          "errors": 20
+        },
+        {
+          "service": "auth-service",
+          "errors": 14
+        }
+      ],
+      "likely_area": {
+        "service": "inventory-service",
+        "upstream_target": "inventory-store",
+        "reason": "Dominant errorCode=SKU_NOT_FOUND maps to service=inventory-service, upstream=inventory-store."
+      }
+    }
+  ],
+  "input_file": "D:\\github\\prod-incident-ai\\data\\generated\\adx_logs.jsonl"
+}

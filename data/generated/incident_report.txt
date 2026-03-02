@@ -1,0 +1,33 @@
+Input: D:\github\prod-incident-ai\data\generated\adx_logs.jsonl
+Total logs: 25284
+Total errors: 3428
+Baseline error rate: 0.0384 (threshold 0.0730)
+Detected incidents: 4
+
+Incident 1
+  Start: 2026-03-01T12:06:01Z
+  End: 2026-03-01T12:17:59Z
+  Errors: 366 / 2513 (rate=0.1456)
+  Likely area: auth-service -> identity-provider
+  Top error: auth.jwt: token expired in auth middleware (205)
+
+Incident 2
+  Start: 2026-03-01T12:22:03Z
+  End: 2026-03-01T12:52:59Z
+  Errors: 1441 / 6553 (rate=0.2199)
+  Likely area: order-service -> postgres-orders
+  Top error: order_repo.query: timeout after 1500ms (850)
+
+Incident 3
+  Start: 2026-03-01T13:14:01Z
+  End: 2026-03-01T13:39:59Z
+  Errors: 862 / 5476 (rate=0.1574)
+  Likely area: payment-service -> payment-provider
+  Top error: payments.client: provider responded 429 (465)
+
+Incident 4
+  Start: 2026-03-01T13:44:03Z
+  End: 2026-03-01T13:55:58Z
+  Errors: 588 / 2498 (rate=0.2354)
+  Likely area: inventory-service -> inventory-store
+  Top error: inventory.repo: sku missing after catalog refresh (310)
