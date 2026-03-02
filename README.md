@@ -15,6 +15,50 @@ This repo simulates a production incident pipeline end-to-end:
 4. Ask an LLM to write an on-call incident summary.
 5. Optionally correlate with mock GitHub PR changes and evaluate output quality.
 
+## Sample Screenshots
+
+Incident summary output:
+
+![Incident summary screenshot](docs/screenshots/incident_summary.png)
+
+Evaluation report output:
+
+![Evaluation report screenshot](docs/screenshots/incident_eval_result.png)
+
+## Repository Layout
+
+```text
+.
++-- configs
+|   +-- config.yaml
+|   +-- config.eval.yaml
++-- data
+|   +-- scenarios
+|   |   +-- default_scenarios.json
+|   +-- mock
+|   |   +-- github_recent_prs.json
+|   |   +-- pr_code_changes/
+|   +-- eval
+|   |   +-- incident_eval_cases.json
+|   +-- generated/
++-- docs
+|   +-- screenshots/
++-- scripts
+    +-- generate_logs.py
+    +-- analyze_adx.py
+    +-- summarize_incident.py
+    +-- eval_incident_summary.py
+    +-- run_pipeline.py
++-- src
+    +-- prod_incident_ai
+        +-- generate_logs.py
+        +-- analyze_adx.py
+        +-- summarize_incident.py
+        +-- eval_incident_summary.py
+        +-- run_pipeline.py
+        +-- config_loader.py
+```
+
 ## Quick Start
 1. Set API key in `.env`.
 2. Run the full pipeline:
@@ -140,47 +184,3 @@ Eval outputs:
 
 Eval spec:
 - `data/eval/incident_eval_cases.json`
-
-## Sample Screenshots
-
-Incident summary output:
-
-![Incident summary screenshot](docs/screenshots/incident_summary.png)
-
-Evaluation report output:
-
-![Evaluation report screenshot](docs/screenshots/incident_eval_result.png)
-
-## Repository Layout
-
-```text
-.
-+-- configs
-|   +-- config.yaml
-|   +-- config.eval.yaml
-+-- data
-|   +-- scenarios
-|   |   +-- default_scenarios.json
-|   +-- mock
-|   |   +-- github_recent_prs.json
-|   |   +-- pr_code_changes/
-|   +-- eval
-|   |   +-- incident_eval_cases.json
-|   +-- generated/
-+-- docs
-|   +-- screenshots/
-+-- scripts
-    +-- generate_logs.py
-    +-- analyze_adx.py
-    +-- summarize_incident.py
-    +-- eval_incident_summary.py
-    +-- run_pipeline.py
-+-- src
-    +-- prod_incident_ai
-        +-- generate_logs.py
-        +-- analyze_adx.py
-        +-- summarize_incident.py
-        +-- eval_incident_summary.py
-        +-- run_pipeline.py
-        +-- config_loader.py
-```
