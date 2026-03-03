@@ -3,7 +3,7 @@ Production incident analysis workflow for:
 - ADX-style log generation
 - rule-based incident detection
 - LLM-based incident brief generation
-- mock PR correlation and fix suggestion evaluation
+- mock PR correlation with confidence ranking and taxonomy-based evaluation
 
 All incidents and logs in this repository are simulated for development and evaluation.
 
@@ -11,9 +11,10 @@ All incidents and logs in this repository are simulated for development and eval
 This repo simulates a production incident pipeline end-to-end:
 1. Generate realistic ADX-style logs with mixed normal and error traffic.
 2. Detect incident windows from error spikes.
-3. Build an incident report (top errors, first-seen times, impacted services, likely area).
-4. Ask an LLM to write an on-call incident summary.
-5. Optionally correlate with mock GitHub PR changes and evaluate output quality.
+3. Build an incident report (top errors, first-seen times, impacted services, likely area, root-cause category).
+4. Ask an LLM to write an on-call incident summary with structured taxonomy output.
+5. Correlate with mock GitHub PR changes using relevance ranking and confidence labels.
+6. Evaluate output quality with both heuristic checks and taxonomy category accuracy.
 
 ## Sample Screenshots
 
@@ -125,6 +126,11 @@ Notes:
 - If `OPENAI_API_KEY` is set, OpenAI is used.
 - If OpenAI fails and `--allow-fallback` is set, a local template summary is produced.
 - The prompt includes compact nearby log snippets, not full raw logs.
+- Each incident includes structured JSON:
+  - `{"root_cause_category": "<lowercase_taxonomy_value>"}`
+- PR correlations in `Likely Causes` include:
+  - `Primary suspect` and `Secondary correlation` labels
+  - confidence level (`High`/`Medium`/`Low`)
 
 ### 4) One-Command Pipeline
 Run generate -> analyze -> summarize:
@@ -181,6 +187,13 @@ py scripts/eval_incident_summary.py
 
 Eval outputs:
 - `data/generated/incident_eval_result.json`
+  - includes heuristic `score` and taxonomy `category_accuracy`
+  - includes predicted vs expected `root_cause_category` per incident
 
 Eval spec:
 - `data/eval/incident_eval_cases.json`
+  - each case can define `expected_root_cause_category`
+
+Root-cause taxonomy:
+- Summaries are expected to include a structured JSON field per incident:
+  - `{"root_cause_category": "..."}` using predefined lowercase taxonomy categories.

@@ -20,6 +20,12 @@ from typing import Any, Dict, List, Tuple
 from urllib.parse import unquote, urlparse
 
 from .config_loader import load_config
+from .taxonomy import (
+    ROOT_CAUSE_CATEGORIES,
+    category_for_error_code,
+    is_valid_root_cause_category,
+    normalize_root_cause_category,
+)
 
 
 FIX_HINTS = {
@@ -97,6 +103,26 @@ def incident_terms(incident: Dict[str, Any]) -> List[str]:
     return list(dict.fromkeys(terms))
 
 
+def incident_anchor_terms(incident: Dict[str, Any]) -> List[str]:
+    terms: List[str] = []
+    dominant = incident.get("dominant_error_code")
+    if dominant:
+        terms.extend(normalize_tokens(str(dominant)))
+    likely = incident.get("likely_area", {})
+    terms.extend(normalize_tokens(str(likely.get("service", ""))))
+    terms.extend(normalize_tokens(str(likely.get("upstream_target", ""))))
+    return list(dict.fromkeys(terms))
+
+
+def incident_root_cause_category(incident: Dict[str, Any]) -> str:
+    raw_category = incident.get("root_cause_category")
+    candidate = normalize_root_cause_category(str(raw_category)) if raw_category is not None else None
+    if candidate and is_valid_root_cause_category(candidate):
+        return candidate
+    dominant_code = incident.get("dominant_error_code")
+    return category_for_error_code(str(dominant_code)) if dominant_code is not None else category_for_error_code(None)
+
+
 def pr_text(pr: Dict[str, Any]) -> str:
     chunks: List[str] = [
         str(pr.get("title", "")),
@@ -110,20 +136,66 @@ def pr_text(pr: Dict[str, Any]) -> str:
     return " ".join(chunks).lower()
 
 
+def pr_relevance_confidence(score: int, term_count: int, anchor_hits: int, rank_index: int) -> str:
+    if term_count <= 0:
+        return "Low"
+    coverage = score / term_count
+    if rank_index == 0:
+        if anchor_hits >= 2 and (score >= 4 or coverage >= 0.3):
+            return "High"
+        if anchor_hits >= 1 or score >= 3:
+            return "Medium"
+        return "Low"
+
+    # Secondary candidates are held to stricter directness standards.
+    if anchor_hits >= 2 and score >= 5:
+        return "Medium"
+    return "Low"
+
+
 def rank_related_prs(incident: Dict[str, Any], prs: List[Dict[str, Any]], max_items: int = 3) -> List[Dict[str, Any]]:
     terms = incident_terms(incident)
+    anchors = incident_anchor_terms(incident)
     if not terms or not prs:
         return []
 
-    scored: List[Tuple[int, Dict[str, Any]]] = []
+    scored: List[Tuple[int, int, List[str], List[str], Dict[str, Any]]] = []
     for pr in prs:
         text = pr_text(pr)
-        score = sum(1 for term in terms if term in text)
+        matched_terms = [term for term in terms if term in text]
+        score = len(matched_terms)
         if score > 0:
-            scored.append((score, pr))
+            matched_anchors = [term for term in anchors if term in text]
+            anchor_hits = len(matched_anchors)
+            scored.append((anchor_hits, score, matched_terms, matched_anchors, pr))
 
-    scored.sort(key=lambda row: row[0], reverse=True)
-    return [pr for _, pr in scored[:max_items]]
+    scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    top = scored[:max_items]
+
+    out: List[Dict[str, Any]] = []
+    for idx, (anchor_hits, score, matched_terms, matched_anchors, pr) in enumerate(top):
+        confidence = pr_relevance_confidence(
+            score=score,
+            term_count=len(terms),
+            anchor_hits=anchor_hits,
+            rank_index=idx,
+        )
+        if idx == 0:
+            relevance_label = "Primary suspect"
+        else:
+            relevance_label = "Secondary correlation"
+        out.append(
+            {
+                "pr": pr,
+                "score": score,
+                "anchor_hits": anchor_hits,
+                "matched_terms": matched_terms[:8],
+                "matched_anchor_terms": matched_anchors[:6],
+                "confidence": confidence,
+                "relevance_label": relevance_label,
+            }
+        )
+    return out
 
 
 def parse_merged_at(value: str) -> datetime:
@@ -330,6 +402,7 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
         likely = incident.get("likely_area", {})
         top_errors = incident.get("top_errors", [])[:5]
         dominant_code = str(incident.get("dominant_error_code", "unknown"))
+        root_cause_category = incident_root_cause_category(incident)
         impacted = [x.get("service", "unknown") for x in incident.get("impacted_services", [])[:5]]
         related = rank_related_prs(incident, prs, max_items=3) if prs else []
         snippets = context_incidents[idx - 1].get("snippets", {}) if idx - 1 < len(context_incidents) else {}
@@ -362,12 +435,21 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
 
         cause_lines: List[str] = []
         if related:
-            for pr in related[:2]:
+            for rel_idx, rel in enumerate(related[:2]):
+                pr = rel["pr"]
                 files = pr.get("files", [])
                 file_hint = files[0].get("path", "unknown-file") if files and isinstance(files[0], dict) else "unknown-file"
-                cause_lines.append(
-                    f"Recent PR #{pr.get('number', 'unknown')} changed {file_hint} ({pr.get('title', 'Untitled PR')})."
-                )
+                number = pr.get("number", "unknown")
+                title = pr.get("title", "Untitled PR")
+                confidence = rel.get("confidence", "Low")
+                if rel_idx == 0:
+                    cause_lines.append(
+                        f"Primary suspect: PR #{number} ({confidence} confidence) changed {file_hint} ({title})."
+                    )
+                else:
+                    cause_lines.append(
+                        f"Secondary correlation: PR #{number} ({confidence} confidence, less directly related) changed {file_hint} ({title})."
+                    )
         elif likely.get("reason"):
             cause_lines.append(str(likely.get("reason")))
         else:
@@ -390,7 +472,7 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
 
         action_lines: List[str] = []
         if related:
-            candidates = ", ".join(f"#{pr.get('number', 'unknown')}" for pr in related[:2])
+            candidates = ", ".join(f"#{rel['pr'].get('number', 'unknown')}" for rel in related[:2])
             action_lines.append(f"Rollback or hotfix candidate PRs ({candidates}).")
         hints = FIX_HINTS.get(dominant_code, [])
         if hints:
@@ -414,11 +496,14 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
                 f"Log: {top.get('error', 'unknown')} count={top.get('count', 0)} first_seen={top.get('first_seen', 'unknown')}"
             )
         if related:
-            for pr in related[:2]:
+            for rel in related[:2]:
+                pr = rel["pr"]
                 files = pr.get("files", [])
                 file_hint = files[0].get("path", "unknown-file") if files and isinstance(files[0], dict) else "unknown-file"
+                confidence = rel.get("confidence", "Low")
+                relevance_label = rel.get("relevance_label", "PR relevance")
                 evidence_lines.append(
-                    f"PR: #{pr.get('number', 'unknown')} {pr.get('title', 'Untitled PR')} (key file {file_hint})"
+                    f"PR ({relevance_label}, {confidence} confidence): #{pr.get('number', 'unknown')} {pr.get('title', 'Untitled PR')} (key file {file_hint})"
                 )
         else:
             evidence_lines.append("PR: no high-confidence related PR match found")
@@ -430,10 +515,16 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
         lines.append(f"Service: {service}")
         lines.append(f"Symptoms: {symptoms_line}")
         lines.append("")
+        lines.append("Structured Output (JSON)")
+        lines.append("------------------------")
+        lines.append("```json")
+        lines.append(json.dumps({"root_cause_category": root_cause_category}, indent=2))
+        lines.append("```")
+        lines.append("")
         lines.append("Likely Causes")
         lines.append("-------------")
-        for cause_idx, cause in enumerate(cause_lines[:3], start=1):
-            lines.append(f"{cause_idx}. {cause}")
+        for cause in cause_lines[:3]:
+            lines.append(f"- {cause}")
         lines.append("")
         lines.append("Recommended Actions")
         lines.append("-------------------")
@@ -450,6 +541,7 @@ def local_summary(report: Dict[str, Any], github_context: Dict[str, Any], log_co
 
 
 def build_prompt(report: Dict[str, Any], github_context: Dict[str, Any], log_context: Dict[str, Any]) -> str:
+    taxonomy_json = json.dumps(ROOT_CAUSE_CATEGORIES, indent=2)
     return (
         "You are an SRE incident analyst. Write a concise plain-text incident brief for on-call handoff.\n"
         "Requirements:\n"
@@ -459,10 +551,17 @@ def build_prompt(report: Dict[str, Any], github_context: Dict[str, Any], log_con
         "  Service: ...\n"
         "  Symptoms: ...\n"
         "\n"
+        "  Structured Output (JSON)\n"
+        "  ------------------------\n"
+        "  ```json\n"
+        "  {\"root_cause_category\": \"<CATEGORY_FROM_TAXONOMY>\"}\n"
+        "  ```\n"
+        "\n"
         "  Likely Causes\n"
         "  -------------\n"
-        "  1. ...\n"
-        "  2. ...\n"
+        "  - Primary suspect: PR #... (High/Medium/Low confidence) ...\n"
+        "  - Secondary correlation: PR #... (High/Medium/Low confidence, less directly related) ...\n"
+        "  - ...\n"
         "\n"
         "  Recommended Actions\n"
         "  -------------------\n"
@@ -473,9 +572,13 @@ def build_prompt(report: Dict[str, Any], github_context: Dict[str, Any], log_con
         "  --------\n"
         "  - Log: ...\n"
         "  - PR: ...\n"
+        "- root_cause_category MUST be one of the allowed taxonomy values exactly.\n"
+        "- Allowed taxonomy values:\n"
+        f"{taxonomy_json}\n"
         "- Keep each incident block concise and factual.\n"
         "- Include concrete timestamps, top error signatures, and counts where useful.\n"
-        "- Correlate incidents to relevant recent PR changes when possible, citing PR numbers and file paths.\n"
+        "- Correlate incidents to relevant recent PR changes with explicit ranking/confidence labels.\n"
+        "- Cite PR numbers and file paths when possible.\n"
         "- Use nearby log snippets as evidence and avoid unsupported speculation.\n"
         "- Keep it factual and avoid speculation beyond the provided data.\n\n"
         "Incident report JSON:\n"

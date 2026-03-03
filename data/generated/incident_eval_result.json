@@ -1,41 +1,76 @@
 {
-  "generated_at": "2026-03-02T03:18:34.284937Z",
+  "generated_at": "2026-03-03T03:38:25.432181Z",
   "total_cases": 4,
   "passed_cases": 4,
   "score": 1.0,
+  "heuristic_score": 1.0,
   "all_passed": true,
+  "allowed_root_cause_categories": [
+    "auth_configuration_drift",
+    "datastore_capacity_saturation",
+    "dependency_latency_regression",
+    "resilience_fallback_misconfiguration",
+    "external_provider_throttling",
+    "resilience_policy_exhaustion",
+    "upstream_availability_degradation",
+    "client_network_interruption",
+    "request_validation_regression",
+    "external_business_rule_rejection",
+    "data_consistency_regression",
+    "unknown"
+  ],
+  "root_cause_category_cases": 4,
+  "root_cause_category_correct": 4,
+  "category_accuracy": 1.0,
+  "valid_root_cause_category_predictions": 4,
   "cases": [
     {
       "incident_index": 1,
       "name": "Auth token validation incident",
       "passed": true,
       "pr_reference_detected": true,
-      "fix_keyword_hits": 6,
-      "fix_keyword_min_required": 3
+      "fix_keyword_hits": 5,
+      "fix_keyword_min_required": 3,
+      "expected_root_cause_category": "auth_configuration_drift",
+      "predicted_root_cause_category": "auth_configuration_drift",
+      "predicted_root_cause_category_valid": true,
+      "category_correct": true
     },
     {
       "incident_index": 2,
       "name": "Order DB timeout incident",
       "passed": true,
       "pr_reference_detected": true,
-      "fix_keyword_hits": 6,
-      "fix_keyword_min_required": 3
+      "fix_keyword_hits": 3,
+      "fix_keyword_min_required": 3,
+      "expected_root_cause_category": "datastore_capacity_saturation",
+      "predicted_root_cause_category": "datastore_capacity_saturation",
+      "predicted_root_cause_category_valid": true,
+      "category_correct": true
     },
     {
       "incident_index": 3,
       "name": "Payment provider 429 incident",
       "passed": true,
       "pr_reference_detected": true,
-      "fix_keyword_hits": 5,
-      "fix_keyword_min_required": 3
+      "fix_keyword_hits": 4,
+      "fix_keyword_min_required": 3,
+      "expected_root_cause_category": "external_provider_throttling",
+      "predicted_root_cause_category": "external_provider_throttling",
+      "predicted_root_cause_category_valid": true,
+      "category_correct": true
     },
     {
       "incident_index": 4,
       "name": "Inventory catalog mismatch incident",
       "passed": true,
       "pr_reference_detected": true,
-      "fix_keyword_hits": 6,
-      "fix_keyword_min_required": 3
+      "fix_keyword_hits": 4,
+      "fix_keyword_min_required": 3,
+      "expected_root_cause_category": "data_consistency_regression",
+      "predicted_root_cause_category": "data_consistency_regression",
+      "predicted_root_cause_category_valid": true,
+      "category_correct": true
     }
   ]
 }
