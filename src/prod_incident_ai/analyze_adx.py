@@ -12,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from .taxonomy import ROOT_CAUSE_CATEGORIES, category_for_error_code
+
 CODE_AREA_HINTS = {
     "DB_TIMEOUT": ("order-service", "postgres-orders"),
     "UPSTREAM_TIMEOUT": ("order-service", "order-service"),
@@ -213,10 +215,14 @@ def analyze_window(rows: List[Dict[str, Any]], stats: List[MinuteStat], start_id
     peak = max(slice_stats, key=lambda s: s.error_rate)
     dominant_code = code_counts.most_common(1)[0][0] if code_counts else None
     primary_error = top_errors[0]["error"] if top_errors else None
+    root_cause_category = category_for_error_code(dominant_code)
 
     if dominant_code and dominant_code in CODE_AREA_HINTS:
         likely_service, likely_upstream = CODE_AREA_HINTS[dominant_code]
-        reason = f"Dominant errorCode={dominant_code} maps to service={likely_service}, upstream={likely_upstream}."
+        reason = (
+            f"Dominant errorCode={dominant_code} maps to service={likely_service}, upstream={likely_upstream}, "
+            f"root_cause_category={root_cause_category}."
+        )
     elif primary_error:
         service_for_primary = fp_service_counts[primary_error].most_common(1)
         upstream_for_primary = fp_upstream_counts[primary_error].most_common(1)
@@ -243,6 +249,7 @@ def analyze_window(rows: List[Dict[str, Any]], stats: List[MinuteStat], start_id
         "peak_error_rate": round(peak.error_rate, 4),
         "peak_errors": peak.errors,
         "dominant_error_code": dominant_code,
+        "root_cause_category": root_cause_category,
         "top_errors": top_errors,
         "impacted_services": top_services,
         "likely_area": {
@@ -308,6 +315,7 @@ def analyze(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "generated_at": iso(datetime.now(timezone.utc)),
         "total_logs": len(rows),
         "total_errors": sum(1 for row in rows if row.get("Level") == "ERROR"),
+        "root_cause_taxonomy": ROOT_CAUSE_CATEGORIES,
         "baseline": baseline,
         "incidents": incidents,
     }

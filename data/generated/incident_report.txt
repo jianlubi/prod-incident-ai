@@ -1,4 +1,4 @@
-Input: D:\github\prod-incident-ai\data\generated\adx_logs.jsonl
+Input: data\generated\adx_logs.jsonl
 Total logs: 25284
 Total errors: 3428
 Baseline error rate: 0.0384 (threshold 0.0730)

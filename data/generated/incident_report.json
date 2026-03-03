@@ -1,7 +1,21 @@
 {
-  "generated_at": "2026-03-02T03:17:46.134288Z",
+  "generated_at": "2026-03-03T03:38:24.356295Z",
   "total_logs": 25284,
   "total_errors": 3428,
+  "root_cause_taxonomy": [
+    "auth_configuration_drift",
+    "datastore_capacity_saturation",
+    "dependency_latency_regression",
+    "resilience_fallback_misconfiguration",
+    "external_provider_throttling",
+    "resilience_policy_exhaustion",
+    "upstream_availability_degradation",
+    "client_network_interruption",
+    "request_validation_regression",
+    "external_business_rule_rejection",
+    "data_consistency_regression",
+    "unknown"
+  ],
   "baseline": {
     "baseline_error_rate": 0.0384,
     "threshold_error_rate": 0.073,
@@ -21,6 +35,7 @@
       "peak_error_rate": 0.2166,
       "peak_errors": 47,
       "dominant_error_code": "TOKEN_EXPIRED",
+      "root_cause_category": "auth_configuration_drift",
       "top_errors": [
         {
           "error": "auth.jwt: token expired in auth middleware",
@@ -73,7 +88,7 @@
       "likely_area": {
         "service": "auth-service",
         "upstream_target": "identity-provider",
-        "reason": "Dominant errorCode=TOKEN_EXPIRED maps to service=auth-service, upstream=identity-provider."
+        "reason": "Dominant errorCode=TOKEN_EXPIRED maps to service=auth-service, upstream=identity-provider, root_cause_category=auth_configuration_drift."
       }
     },
     {
@@ -88,6 +103,7 @@
       "peak_error_rate": 0.3803,
       "peak_errors": 81,
       "dominant_error_code": "DB_TIMEOUT",
+      "root_cause_category": "datastore_capacity_saturation",
       "top_errors": [
         {
           "error": "order_repo.query: timeout after 1500ms",
@@ -140,7 +156,7 @@
       "likely_area": {
         "service": "order-service",
         "upstream_target": "postgres-orders",
-        "reason": "Dominant errorCode=DB_TIMEOUT maps to service=order-service, upstream=postgres-orders."
+        "reason": "Dominant errorCode=DB_TIMEOUT maps to service=order-service, upstream=postgres-orders, root_cause_category=datastore_capacity_saturation."
       }
     },
     {
@@ -155,6 +171,7 @@
       "peak_error_rate": 0.267,
       "peak_errors": 55,
       "dominant_error_code": "PAYMENT_429",
+      "root_cause_category": "external_provider_throttling",
       "top_errors": [
         {
           "error": "payments.client: provider responded 429",
@@ -207,7 +224,7 @@
       "likely_area": {
         "service": "payment-service",
         "upstream_target": "payment-provider",
-        "reason": "Dominant errorCode=PAYMENT_429 maps to service=payment-service, upstream=payment-provider."
+        "reason": "Dominant errorCode=PAYMENT_429 maps to service=payment-service, upstream=payment-provider, root_cause_category=external_provider_throttling."
       }
     },
     {
@@ -222,6 +239,7 @@
       "peak_error_rate": 0.4764,
       "peak_errors": 101,
       "dominant_error_code": "SKU_NOT_FOUND",
+      "root_cause_category": "data_consistency_regression",
       "top_errors": [
         {
           "error": "inventory.repo: sku missing after catalog refresh",
@@ -274,9 +292,9 @@
       "likely_area": {
         "service": "inventory-service",
         "upstream_target": "inventory-store",
-        "reason": "Dominant errorCode=SKU_NOT_FOUND maps to service=inventory-service, upstream=inventory-store."
+        "reason": "Dominant errorCode=SKU_NOT_FOUND maps to service=inventory-service, upstream=inventory-store, root_cause_category=data_consistency_regression."
       }
     }
   ],
-  "input_file": "D:\\github\\prod-incident-ai\\data\\generated\\adx_logs.jsonl"
+  "input_file": "data\\generated\\adx_logs.jsonl"
 }
